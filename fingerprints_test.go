@@ -18,8 +18,8 @@ func TestFingerprints(t *testing.T) {
 		t.Fatalf("LoadFingerprints() failed:: %s", err)
 	}
 
-	for name, fdb := range fset.Databases {
-		name := name
+	for _, fdb := range fset.Databases {
+		name := fdb.Name
 		fdb := fdb
 		if !strings.HasSuffix(name, ".xml") {
 			continue

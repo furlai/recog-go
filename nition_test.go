@@ -39,10 +39,10 @@ func TestExamples(t *testing.T) {
 		t.Errorf("LoadFingerprints() returned an empty set")
 		return
 	}
-	for name, fdb := range fset.Databases {
+	for _, fdb := range fset.Databases {
 		err := fdb.VerifyExamples(".")
 		if err != nil {
-			t.Errorf("VerifyExamples() failed for %s: %s", name, err)
+			t.Errorf("VerifyExamples() failed for %s: %s", fdb.Name, err)
 		}
 	}
 }
