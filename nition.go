@@ -13,49 +13,37 @@ import (
 
 // FingerprintSet is a collection of loaded Recog fingerprint databases
 type FingerprintSet struct {
-	Databases []*FingerprintDB
-	Logger    *log.Logger
+	DatabasesByMatchKey map[string][]*FingerprintDB
+	Logger              *log.Logger
 }
 
 // NewFingerprintSet returns an allocated FingerprintSet structure
 func NewFingerprintSet() *FingerprintSet {
 	fs := &FingerprintSet{}
-	fs.Databases = make([]*FingerprintDB, 0, 20)
+	fs.DatabasesByMatchKey = make(map[string][]*FingerprintDB)
 	return fs
 }
 
 // MatchFirst matches data to a given fingerprint database
-func (fs *FingerprintSet) MatchFirst(name string, data string) *FingerprintMatch {
-	found := false
-	for _, fdb := range fs.Databases {
-		if fdb.Matches == name || fdb.Name == name {
-			found = true
-			return fdb.MatchFirst(data)
-		}
+func (fs *FingerprintSet) MatchFirst(name string, data string) (*FingerprintMatch, error) {
+	if fdbs, ok := fs.DatabasesByMatchKey[name]; ok {
+		return fdbs[0].MatchFirst(data), nil
 	}
 
-	nomatch := &FingerprintMatch{Matched: false}
-	if !found {
-		nomatch.Errors = append(nomatch.Errors, fmt.Errorf("database %s is missing", name))
-	}
-	return nomatch
+	return nil, fmt.Errorf("database %s is missing", name)
 }
 
 // MatchAll matches data to a given fingerprint database
-func (fs *FingerprintSet) MatchAll(name string, data string) []*FingerprintMatch {
-	found := false
-	var matches []*FingerprintMatch
-	for _, fdb := range fs.Databases {
-		if fdb.Matches == name || fdb.Name == name {
-			found = true
+func (fs *FingerprintSet) MatchAll(name string, data string) ([]*FingerprintMatch, error) {
+	if fdbs, ok := fs.DatabasesByMatchKey[name]; ok {
+		var matches []*FingerprintMatch
+		for _, fdb := range fdbs {
 			matches = append(matches, fdb.MatchAll(data)...)
 		}
+		return matches, nil
 	}
 
-	if !found {
-		matches = append(matches, &FingerprintMatch{Matched: false, Errors: []error{fmt.Errorf("database %s is missing", name)}})
-	}
-	return matches
+	return nil, fmt.Errorf("database %s is missing", name)
 }
 
 // LoadFingerprints parses the embedded Recog XML databases, returning a FingerprintSet
@@ -107,7 +95,10 @@ func (fs *FingerprintSet) LoadFingerprintsFromFS(efs http.FileSystem) error {
 		fdb.Logger = fs.Logger
 
 		// add the database
-		fs.Databases = append(fs.Databases, &fdb)
+		fs.DatabasesByMatchKey[fdb.Matches] = append(fs.DatabasesByMatchKey[fdb.Matches], &fdb)
+
+		// also add the alias by its name
+		fs.DatabasesByMatchKey[fdb.Name] = append(fs.DatabasesByMatchKey[fdb.Name], &fdb)
 	}
 
 	return nil

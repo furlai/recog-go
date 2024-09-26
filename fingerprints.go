@@ -104,16 +104,15 @@ var varSubPattern = regexp.MustCompile(`\{[a-zA-Z0-9._\-]+\}`)
 
 // Match a fingerprint against a string
 func (fp *Fingerprint) Match(data string) *FingerprintMatch {
-	res := &FingerprintMatch{Matched: false}
-
 	matches := fp.PatternCompiled.FindStringSubmatch(data)
 	if len(matches) == 0 {
-		return res
+		return nil
 	}
 
-	res.Fingerprint = fp
-	res.Matched = true
-	res.Values = make(map[string]string)
+	res := &FingerprintMatch{
+		Fingerprint: fp,
+		Values:      make(map[string]string),
+	}
 
 	// Set the certainty if available
 	if fp.Certainty != "" {
@@ -222,7 +221,7 @@ func (fp *Fingerprint) VerifyExamples(fpath string) error {
 		escapedData = strings.Replace(escapedData, "\r", "\\r", -1)
 
 		m := fp.Match(exampleData)
-		if m == nil || !m.Matched {
+		if m == nil {
 			return fmt.Errorf("failed to match '%s' (%s)", fp.PatternCompiled.String(), escapedData)
 		}
 
@@ -251,7 +250,6 @@ func (fp *Fingerprint) VerifyExamples(fpath string) error {
 
 // FingerprintMatch represents a match of a fingerprint to some data
 type FingerprintMatch struct {
-	Matched     bool
 	Errors      []error
 	Values      map[string]string
 	Fingerprint *Fingerprint
@@ -309,10 +307,8 @@ func (fdb *FingerprintDB) VerifyExamples(fpath string) error {
 
 // MatchFirst finds the first match for a given string
 func (fdb *FingerprintDB) MatchFirst(data string) *FingerprintMatch {
-	nomatch := &FingerprintMatch{Matched: false}
 	for _, f := range fdb.Fingerprints {
-		m := f.Match(data)
-		if m.Matched {
+		if m := f.Match(data); m != nil {
 			desc := ""
 			if f.Description != nil {
 				desc = f.Description.Text
@@ -322,15 +318,14 @@ func (fdb *FingerprintDB) MatchFirst(data string) *FingerprintMatch {
 		}
 	}
 	fdb.DebugLogf("FP-FAIL %#v", data)
-	return nomatch
+	return nil
 }
 
 // MatchAll finds all matches for a given string
 func (fdb *FingerprintDB) MatchAll(data string) []*FingerprintMatch {
 	ret := []*FingerprintMatch{}
 	for _, f := range fdb.Fingerprints {
-		m := f.Match(data)
-		if m.Matched {
+		if m := f.Match(data); m != nil {
 			desc := ""
 			if f.Description != nil {
 				desc = f.Description.Text
