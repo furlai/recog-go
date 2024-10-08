@@ -10,7 +10,7 @@ func TestLoad(t *testing.T) {
 	if err != nil {
 		t.Errorf("LoadFingerprints() failed: %s", err)
 	}
-	if len(fset.Databases) == 0 {
+	if len(fset.DatabasesByMatchKey) == 0 {
 		t.Errorf("LoadFingerprints() returned an empty set")
 	}
 }
@@ -24,7 +24,7 @@ func TestLoadDir(t *testing.T) {
 	if err != nil {
 		t.Errorf("LoadFingerprintsDir() failed: %s", err)
 	}
-	if len(fset.Databases) == 0 {
+	if len(fset.DatabasesByMatchKey) == 0 {
 		t.Errorf("LoadFingerprintsDir() returned an empty set")
 	}
 }
@@ -35,14 +35,16 @@ func TestExamples(t *testing.T) {
 		t.Errorf("LoadFingerprints() failed")
 		return
 	}
-	if len(fset.Databases) == 0 {
+	if len(fset.DatabasesByMatchKey) == 0 {
 		t.Errorf("LoadFingerprints() returned an empty set")
 		return
 	}
-	for name, fdb := range fset.Databases {
-		err := fdb.VerifyExamples(".")
-		if err != nil {
-			t.Errorf("VerifyExamples() failed for %s: %s", name, err)
+	for _, fdbs := range fset.DatabasesByMatchKey {
+		for _, fdb := range fdbs {
+			err := fdb.VerifyExamples(".")
+			if err != nil {
+				t.Errorf("VerifyExamples() failed for %s: %s", fdb.Name, err)
+			}
 		}
 	}
 }
@@ -53,13 +55,13 @@ func TestPJL(t *testing.T) {
 		t.Errorf("LoadFingerprints() failed")
 		return
 	}
-	if len(fset.Databases) == 0 {
+	if len(fset.DatabasesByMatchKey) == 0 {
 		t.Errorf("LoadFingerprints() returned an empty set")
 		return
 	}
 
-	m := fset.MatchFirst("hp_pjl_id.xml", "Xerox ColorQube 8570DT")
-	if !m.Matched {
+	m, _ := fset.MatchFirst("hp_pjl_id.xml", "Xerox ColorQube 8570DT")
+	if m == nil {
 		t.Errorf("Failed to match 'Xerox ColorQube 8570DT': %#v", m)
 		return
 	}
@@ -75,23 +77,20 @@ func TestPJLv2(t *testing.T) {
 		t.Errorf("LoadFingerprints() failed")
 		return
 	}
-	if len(fset.Databases) == 0 {
+	if len(fset.DatabasesByMatchKey) == 0 {
 		t.Errorf("LoadFingerprints() returned an empty set")
 		return
 	}
 
-	ms := fset.MatchAll("hp_pjl_id.xml", "Xerox ColorQube 8570DT")
+	ms, err := fset.MatchAll("hp_pjl_id.xml", "Xerox ColorQube 8570DT")
 	if len(ms) == 0 {
 		t.Errorf("Failed to match 'Xerox ColorQube 8570DT'")
 	}
-
-	m := ms[0]
-
-	if !m.Matched {
-		t.Errorf("Failed to match 'Xerox ColorQube 8570DT'")
-		return
+	if err != nil {
+		t.Errorf("MatchAll() failed: %s", err)
 	}
 
+	m := ms[0]
 	if m.Values["os.product"] != "8570DT" || m.Values["os.vendor"] != "Xerox" {
 		t.Errorf("Failed to match 'Xerox ColorQube 8570DT' expected product or vendor")
 	}
@@ -103,13 +102,13 @@ func TestHTMLTitle(t *testing.T) {
 		t.Errorf("LoadFingerprints() failed")
 		return
 	}
-	if len(fset.Databases) == 0 {
+	if len(fset.DatabasesByMatchKey) == 0 {
 		t.Errorf("LoadFingerprints() returned an empty set")
 		return
 	}
 
-	m := fset.MatchFirst("html_title.xml", "CloudKey")
-	if !m.Matched {
+	m, _ := fset.MatchFirst("html_title.xml", "CloudKey")
+	if m == nil {
 		t.Errorf("Failed to match 'CloudKey': %#v", m)
 		return
 	}
@@ -124,13 +123,13 @@ func TestX509Subjects(t *testing.T) {
 		t.Errorf("LoadFingerprints() failed")
 		return
 	}
-	if len(fset.Databases) == 0 {
+	if len(fset.DatabasesByMatchKey) == 0 {
 		t.Errorf("LoadFingerprints() returned an empty set")
 		return
 	}
 
-	m := fset.MatchFirst("x509.subject", "CN=iDRACdefault0023AEF89AD1,OU=iDRAC Group,O=Dell Inc.,L=Round Rock,C=US")
-	if !m.Matched {
+	m, _ := fset.MatchFirst("x509.subject", "CN=iDRACdefault0023AEF89AD1,OU=iDRAC Group,O=Dell Inc.,L=Round Rock,C=US")
+	if m == nil {
 		t.Errorf("Failed to match 'CN=iDRACdefault0023AEF89AD1,OU=iDRAC Group,O=Dell Inc.,L=Round Rock,C=US': %#v", m)
 		return
 	}

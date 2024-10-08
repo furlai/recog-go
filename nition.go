@@ -13,37 +13,37 @@ import (
 
 // FingerprintSet is a collection of loaded Recog fingerprint databases
 type FingerprintSet struct {
-	Databases map[string]*FingerprintDB
-	Logger    *log.Logger
+	DatabasesByMatchKey map[string][]*FingerprintDB
+	Logger              *log.Logger
 }
 
 // NewFingerprintSet returns an allocated FingerprintSet structure
 func NewFingerprintSet() *FingerprintSet {
 	fs := &FingerprintSet{}
-	fs.Databases = make(map[string]*FingerprintDB)
+	fs.DatabasesByMatchKey = make(map[string][]*FingerprintDB)
 	return fs
 }
 
 // MatchFirst matches data to a given fingerprint database
-func (fs *FingerprintSet) MatchFirst(name string, data string) *FingerprintMatch {
-	nomatch := &FingerprintMatch{Matched: false}
-	fdb, ok := fs.Databases[name]
-	if !ok {
-		nomatch.Errors = append(nomatch.Errors, fmt.Errorf("database %s is missing", name))
-		return nomatch
+func (fs *FingerprintSet) MatchFirst(name string, data string) (*FingerprintMatch, error) {
+	if fdbs, ok := fs.DatabasesByMatchKey[name]; ok {
+		return fdbs[0].MatchFirst(data), nil
 	}
-	return fdb.MatchFirst(data)
+
+	return nil, fmt.Errorf("database %s is missing", name)
 }
 
 // MatchAll matches data to a given fingerprint database
-func (fs *FingerprintSet) MatchAll(name string, data string) []*FingerprintMatch {
-	nomatch := &FingerprintMatch{Matched: false}
-	fdb, ok := fs.Databases[name]
-	if !ok {
-		nomatch.Errors = append(nomatch.Errors, fmt.Errorf("database %s is missing", name))
-		return []*FingerprintMatch{nomatch}
+func (fs *FingerprintSet) MatchAll(name string, data string) ([]*FingerprintMatch, error) {
+	if fdbs, ok := fs.DatabasesByMatchKey[name]; ok {
+		var matches []*FingerprintMatch
+		for _, fdb := range fdbs {
+			matches = append(matches, fdb.MatchAll(data)...)
+		}
+		return matches, nil
 	}
-	return fdb.MatchAll(data)
+
+	return nil, fmt.Errorf("database %s is missing", name)
 }
 
 // LoadFingerprints parses the embedded Recog XML databases, returning a FingerprintSet
@@ -94,11 +94,11 @@ func (fs *FingerprintSet) LoadFingerprintsFromFS(efs http.FileSystem) error {
 
 		fdb.Logger = fs.Logger
 
-		// Create an alias for the file name
-		fs.Databases[f.Name()] = &fdb
+		// add the database
+		fs.DatabasesByMatchKey[fdb.Matches] = append(fs.DatabasesByMatchKey[fdb.Matches], &fdb)
 
-		// Create an alias for the "matches" attribute
-		fs.Databases[fdb.Matches] = &fdb
+		// also add the alias by its name
+		fs.DatabasesByMatchKey[fdb.Name] = append(fs.DatabasesByMatchKey[fdb.Name], &fdb)
 	}
 
 	return nil
